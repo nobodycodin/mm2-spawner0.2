@@ -1,0 +1,260 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+local DataBase = require(ReplicatedStorage.Database.Sync.Item)
+local PlayerData = require(ReplicatedStorage.Modules.ProfileData)
+
+local WeaponOwnedRange = {min = 1, max = 1}
+
+-- ✅ Full AllowedWeapons list
+local AllowedWeapons = {
+    ["BaubleChroma"] = true, ["Blossom_G"] = true, ["GingerLuger"] = true, ["Bioblade"] = true,
+    ["Blossom_K"] = true, ["Chill"] = true, ["ChromaBioblade"] = true, ["ChromaBoneblade"] = true,
+    ["ChromaCookieblade"] = true, ["ChromaDarksword"] = true, ["ChromaDeathshard"] = true,
+    ["ChromaFang"] = true, ["ChromaFlames"] = true, ["ChromaFrostbite"] = true, ["ChromaGingersword"] = true,
+    ["ChromaHeat"] = true, ["ChromaLaser"] = true, ["ChromaLightbringer"] = true, ["ChromaLuger"] = true,
+    ["ChromaLugercane"] = true, ["ChromaLugerGG"] = true, ["ChromaLugerXmas"] = true, ["ChromaSaw"] = true,
+    ["ChromaSeer"] = true, ["ChromaShark"] = true, ["ChromaSlasher"] = true, ["ChromaSugar"] = true,
+    ["ChromaTides"] = true, ["ChromaTidesV2"] = true, ["ChromaVampire"] = true, ["ChromaVampireGun"] = true,
+    ["ChromaXmas"] = true, ["ChromaXmasGun"] = true, ["ChromaYoru"] = true, ["Cookieblade"] = true,
+    ["Corrupt"] = true, ["DarkSword"] = true, ["Deathshard"] = true, ["ElderwoodBlade"] = true,
+    ["ElderwoodScythe"] = true, ["Fang"] = true, ["Flames"] = true, ["Frostbite"] = true,
+    ["Gingersword"] = true, ["GreenLuger"] = true, ["Hallowscythe"] = true, ["Hallowscythe2025"] = true,
+    ["Iceblaster"] = true, ["Icecrusher"] = true, ["Icepiercer"] = true, ["Iceshard"] = true,
+    ["Icewing"] = true, ["Icebreaker"] = true, ["Icebeam"] = true, ["Icehammer"] = true,
+    ["Lightbringer"] = true, ["LogChopper"] = true, ["Luger"] = true, ["LugerCane"] = true,
+    ["LugerGG"] = true, ["LugerXmas"] = true, ["Minty"] = true, ["Nebula"] = true, ["Pixel"] = true,
+    ["Prismatic"] = true, ["RedLuger"] = true, ["Ripper"] = true, ["Saw"] = true, ["Seer"] = true,
+    ["Shark"] = true, ["Slasher"] = true, ["Snowflake"] = true, ["Sugar"] = true, ["Tides"] = true,
+    ["TidesV2"] = true, ["Virtual"] = true, ["Vampire"] = true, ["VampireGun"] = true,
+    ["Xmas"] = true, ["XmasGun"] = true, ["Yoru"] = true
+}
+
+local mysteryBoxes = {
+    "MLG Box", "Summer2025Box", "KnifeBox5", "KnifeBox2", "MysteryBox1",
+    "GunBox3", "GunBox2", "KnifeBox3", "KnifeBox4", "KnifeBox1",
+    "MysteryBox2", "GunBox1"
+}
+
+local BoxControllerRemote = ReplicatedStorage.Remotes.Shop.BoxController
+
+-- Fade function
+local function fade(obj, goalTransparency, time)
+    TweenService:Create(obj, TweenInfo.new(time), {BackgroundTransparency = goalTransparency}):Play()
+    if obj:IsA("TextLabel") or obj:IsA("TextButton") then
+        TweenService:Create(obj, TweenInfo.new(time), {TextTransparency = goalTransparency}):Play()
+    end
+end
+
+local function createWeaponSpawnerGUI()
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "WeaponSpawnerGui"
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+    local MainSize = UDim2.new(0, 420, 0, 420)
+    local GUIColor = Color3.fromRGB(30, 30, 40)
+
+    -- Intro
+    local IntroFrame = Instance.new("Frame")
+    IntroFrame.Size = MainSize
+    IntroFrame.Position = UDim2.new(0.5, -210, 0.5, -210)
+    IntroFrame.BackgroundColor3 = GUIColor
+    IntroFrame.Parent = ScreenGui
+    IntroFrame.BackgroundTransparency = 1
+
+    local IntroCorner = Instance.new("UICorner")
+    IntroCorner.CornerRadius = UDim.new(0, 12)
+    IntroCorner.Parent = IntroFrame
+
+    local IntroLabel = Instance.new("TextLabel")
+    IntroLabel.Size = UDim2.new(1, 0, 1, 0)
+    IntroLabel.BackgroundTransparency = 1
+    IntroLabel.Text = "Made by KunogamiScripts"
+    IntroLabel.Font = Enum.Font.GothamBold
+    IntroLabel.TextSize = 26
+    IntroLabel.TextColor3 = Color3.fromRGB(0, 170, 255)
+    IntroLabel.TextTransparency = 1
+    IntroLabel.Parent = IntroFrame
+
+    fade(IntroFrame, 0, 0.8)
+    fade(IntroLabel, 0, 0.8)
+    task.wait(2)
+    fade(IntroFrame, 1, 0.8)
+    fade(IntroLabel, 1, 0.8)
+    task.wait(1)
+    IntroFrame:Destroy()
+
+    -- Main frame
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Size = MainSize
+    MainFrame.Position = UDim2.new(0.5, -210, 0.5, -210)
+    MainFrame.BackgroundColor3 = GUIColor
+    MainFrame.Active = true
+    MainFrame.Draggable = true
+    MainFrame.Parent = ScreenGui
+
+    local MainCorner = Instance.new("UICorner")
+    MainCorner.CornerRadius = UDim.new(0, 12)
+    MainCorner.Parent = MainFrame
+
+    -- Minimize button
+    local MinimizeButton = Instance.new("TextButton")
+    MinimizeButton.Size = UDim2.new(0, 30, 0, 30)
+    MinimizeButton.Position = UDim2.new(1, -35, 0, 5)
+    MinimizeButton.Text = "-"
+    MinimizeButton.Font = Enum.Font.GothamBold
+    MinimizeButton.TextSize = 18
+    MinimizeButton.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+    MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    MinimizeButton.Parent = MainFrame
+
+    local MinCorner = Instance.new("UICorner")
+    MinCorner.CornerRadius = UDim.new(0, 6)
+    MinCorner.Parent = MinimizeButton
+
+    local Minimized = false
+    local MiniButton
+
+    MinimizeButton.MouseButton1Click:Connect(function()
+        MainFrame.Visible = false
+        Minimized = true
+        MiniButton.Visible = true
+    end)
+
+    MiniButton = Instance.new("TextButton")
+    MiniButton.Size = UDim2.new(0, 120, 0, 30)
+    MiniButton.Position = UDim2.new(0.5, -60, 0, 10)
+    MiniButton.Text = "Open Weapon Spawner"
+    MiniButton.Font = Enum.Font.GothamBold
+    MiniButton.TextSize = 14
+    MiniButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+    MiniButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    MiniButton.Visible = false
+    MiniButton.Parent = ScreenGui
+
+    local MiniCorner = Instance.new("UICorner")
+    MiniCorner.CornerRadius = UDim.new(0, 6)
+    MiniCorner.Parent = MiniButton
+
+    MiniButton.MouseButton1Click:Connect(function()
+        MainFrame.Visible = true
+        Minimized = false
+        MiniButton.Visible = false
+    end)
+
+    -- Search box
+    local WeaponSearchBox = Instance.new("TextBox")
+    WeaponSearchBox.Size = UDim2.new(0.9, 0, 0.12, 0)
+    WeaponSearchBox.Position = UDim2.new(0.05, 0, 0.05, 0)
+    WeaponSearchBox.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    WeaponSearchBox.PlaceholderText = "Search weapon..."
+    WeaponSearchBox.Text = ""
+    WeaponSearchBox.TextColor3 = Color3.fromRGB(0, 0, 0)
+    WeaponSearchBox.Font = Enum.Font.SourceSansBold
+    WeaponSearchBox.TextScaled = true
+    WeaponSearchBox.ClearTextOnFocus = false
+    WeaponSearchBox.Parent = MainFrame
+
+    local SearchCorner = Instance.new("UICorner")
+    SearchCorner.CornerRadius = UDim.new(0, 12)
+    SearchCorner.Parent = WeaponSearchBox
+
+    -- Weapon list
+    local WeaponListFrame = Instance.new("ScrollingFrame")
+    WeaponListFrame.Size = UDim2.new(0.9, 0, 0.55, 0)
+    WeaponListFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
+    WeaponListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    WeaponListFrame.ScrollBarThickness = 6
+    WeaponListFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    WeaponListFrame.Parent = MainFrame
+
+    local ListLayout = Instance.new("UIListLayout")
+    ListLayout.Parent = WeaponListFrame
+    ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    local selectedWeapon = ""
+    local function PopulateWeaponList(filterText)
+        for _, child in pairs(WeaponListFrame:GetChildren()) do
+            if child:IsA("TextButton") then child:Destroy() end
+        end
+        local lowerFilter = string.lower(filterText or "")
+        for weaponName in pairs(AllowedWeapons) do
+            if string.find(string.lower(weaponName), lowerFilter) then
+                local WeaponButton = Instance.new("TextButton")
+                WeaponButton.Size = UDim2.new(1, 0, 0, 28)
+                WeaponButton.Text = weaponName
+                WeaponButton.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+                WeaponButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+                WeaponButton.Font = Enum.Font.SourceSans
+                WeaponButton.TextSize = 18
+                WeaponButton.Parent = WeaponListFrame
+
+                WeaponButton.MouseButton1Click:Connect(function()
+                    selectedWeapon = weaponName
+                    TweenService:Create(WeaponButton, TweenInfo.new(0.3), {
+                        BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+                    }):Play()
+                    WeaponSearchBox.Text = weaponName
+                end)
+            end
+        end
+    end
+    PopulateWeaponList("")
+    WeaponSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+        PopulateWeaponList(WeaponSearchBox.Text)
+    end)
+
+    -- Spawn button
+    local SpawnWeaponButton = Instance.new("TextButton")
+    SpawnWeaponButton.Size = UDim2.new(0.9, 0, 0.1, 0)
+    SpawnWeaponButton.Position = UDim2.new(0.05, 0, 0.78, 0)
+    SpawnWeaponButton.Text = "Spawn Weapon"
+    SpawnWeaponButton.Font = Enum.Font.GothamBold
+    SpawnWeaponButton.TextSize = 20
+    SpawnWeaponButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+    SpawnWeaponButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SpawnWeaponButton.Parent = MainFrame
+
+    local SpawnCorner = Instance.new("UICorner")
+    SpawnCorner.CornerRadius = UDim.new(0, 8)
+    SpawnCorner.Parent = SpawnWeaponButton
+
+    -- Confirmation label
+    local ConfirmationLabel = Instance.new("TextLabel")
+    ConfirmationLabel.Size = UDim2.new(0.9, 0, 0.07, 0)
+    ConfirmationLabel.Position = UDim2.new(0.05, 0, 0.9, 0)
+    ConfirmationLabel.BackgroundTransparency = 1
+    ConfirmationLabel.Text = ""
+    ConfirmationLabel.Font = Enum.Font.SourceSansBold
+    ConfirmationLabel.TextScaled = true
+    ConfirmationLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+    ConfirmationLabel.Visible = false
+    ConfirmationLabel.Parent = MainFrame
+
+    SpawnWeaponButton.MouseButton1Click:Connect(function()
+        if selectedWeapon ~= "" and AllowedWeapons[selectedWeapon] and DataBase[selectedWeapon] then
+            if not PlayerData.Weapons.Owned then PlayerData.Weapons.Owned = {} end
+            local count = PlayerData.Weapons.Owned[selectedWeapon] or 0
+            local addCount = math.random(WeaponOwnedRange.min, WeaponOwnedRange.max)
+            PlayerData.Weapons.Owned[selectedWeapon] = count + addCount
+
+            local randomBox = mysteryBoxes[math.random(1, #mysteryBoxes)]
+            BoxControllerRemote:Fire(randomBox, selectedWeapon)
+
+            ConfirmationLabel.Text = selectedWeapon .. " Spawned!"
+            ConfirmationLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+            ConfirmationLabel.Visible = true
+            task.delay(2, function() ConfirmationLabel.Visible = false end)
+        else
+            ConfirmationLabel.Text = "Select a valid weapon!"
+            ConfirmationLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+            ConfirmationLabel.Visible = true
+            task.delay(2, function() ConfirmationLabel.Visible = false end)
+        end
+    end)
+end
+
+createWeaponSpawnerGUI()
